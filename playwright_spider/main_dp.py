@@ -136,14 +136,16 @@ def collect_schedules(tab, keyword: str):
     print(f"\n📊 汇总: 有效 {total_ok} / 空 {total_empty} / 失败 {total_fail}")
 
 
-def main(username: str, password: str, keyword: str = "2022"):
+def main(username: str, password: str, keyword: str = "2022", proxy: str = ""):
     co = ChromiumOptions()
     co.auto_port()
     # Linux 服务器: 用 xvfb-run 启动脚本代替 headless，WAF 会检测 headless
-    # 例: xvfb-run python main_dp.py user pass 2022
+    # 例: xvfb-run python main_dp.py user pass 2022 --proxy http://127.0.0.1:7890
     co.set_argument('--no-sandbox')
     co.set_argument('--disable-gpu')
-    co.set_proxy('http://127.0.0.1:7890')
+    if proxy:
+        co.set_proxy(proxy)
+        print(f"   代理: {proxy}")
 
     browser = Chromium(co)
     tab = browser.latest_tab
@@ -168,7 +170,11 @@ def main(username: str, password: str, keyword: str = "2022"):
 
 
 if __name__ == "__main__":
-    user = sys.argv[1] if len(sys.argv) > 1 else input("用户名: ")
-    pwd = sys.argv[2] if len(sys.argv) > 2 else input("密码: ")
-    keyword = sys.argv[3] if len(sys.argv) > 3 else input("学号前缀 (默认 2022): ") or "2022"
-    main(user, pwd, keyword)
+    import argparse
+    parser = argparse.ArgumentParser(description="CDUT 课表采集")
+    parser.add_argument("username", help="CAS 用户名")
+    parser.add_argument("password", help="CAS 密码")
+    parser.add_argument("keyword", nargs="?", default="2022", help="学号前缀 (默认 2022)")
+    parser.add_argument("--proxy", "-p", default="", help="代理地址，如 http://127.0.0.1:7890")
+    args = parser.parse_args()
+    main(args.username, args.password, args.keyword, args.proxy)
