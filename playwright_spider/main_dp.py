@@ -32,12 +32,29 @@ def login(tab, username: str, password: str) -> bool:
     btn.click()
 
     # 等待跳转到教务框架页
-    for i in range(20):
+    for i in range(60):
         time.sleep(1)
         if "jsxsd/framework" in tab.url:
             print("✅ 登录成功")
             return True
-    print("❌ 登录失败，请检查账号密码")
+
+    try:
+        url = tab.url
+        title = tab.title
+        snippet = (tab.html or "")[:800]
+        msg = ""
+        for key in ("用户名", "密码", "错误", "error", "Error"):
+            if key in snippet:
+                msg = key
+                break
+        print("❌ 登录失败")
+        print(f"   最终 URL: {url}")
+        print(f"   页面标题: {title}")
+        if msg:
+            print(f"   页面可能提示: {msg}")
+        print(f"   页面片段: {snippet}")
+    except Exception:
+        print("❌ 登录失败（无法读取页面信息）")
     return False
 
 
