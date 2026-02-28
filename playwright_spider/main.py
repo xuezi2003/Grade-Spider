@@ -163,43 +163,14 @@ async def main(username: str, password: str, keyword: str = "2022"):
             await browser.close()
             return
 
-        # 不要重新导航！登录后的页面就是真实框架页(140KB)
-        # 检查页面中的 script 标签和 WAF 脚本引用
-        scripts = await page.evaluate("""
-            () => Array.from(document.querySelectorAll('script[src]')).map(s => s.src)
-        """)
-        print(f"   [debug] script tags in login page: {scripts}")
-
-        # 搜索 HTML 中是否有 WAF 相关的 script/link
-        waf_refs = await page.evaluate("""
-            () => {
-                const html = document.documentElement.outerHTML;
-                const matches = [];
-                const re = /sKpQlUVCxrwf|mGPPWCIf|pS0Rm4yRjniP/g;
-                let m;
-                while ((m = re.exec(html)) !== null) {
-                    matches.push({match: m[0], index: m.index, context: html.substring(m.index - 50, m.index + 80)});
-                }
-                return matches;
-            }
-        """)
-        print(f"   [debug] WAF references in HTML: {waf_refs}")
-
-        # 记录所有失败的请求
-        failed_requests = []
-        page.on("requestfailed", lambda req: failed_requests.append(f"{req.url} -> {req.failure}"))
-
-        # 尝试重新加载页面（会触发资源加载）
-        await page.reload(wait_until="networkidle")
-        await asyncio.sleep(2)
-        print(f"   [debug] failed requests after reload ({len(failed_requests)}):")
-        for r in failed_requests[:15]:
-            print(f"     {r}")
-
-        has_jquery = await page.evaluate("typeof jQuery !== 'undefined'")
-        print(f"   [debug] jQuery after reload: {has_jquery}")
-
-        if not has_jquery:
+        # 等待 jQuery 加载（WAF 质询完成后 JS 才会加载）
+        for _ in range(30):
+            has_jquery = await page.evaluate("typeof jQuery !== 'undefined'")
+            if has_jquery:
+                break
+            await asyncio.sleep(1)
+        else:
+            print("❌ jQuery 未加载，WAF 质询可能未通过")
             await page.close()
             await browser.close()
             return
